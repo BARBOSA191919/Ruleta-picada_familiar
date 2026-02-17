@@ -1,0 +1,25 @@
+
+-- Crear tabla para el estado del juego
+CREATE TABLE game_state (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  participants JSONB DEFAULT '[]'::jsonb,
+  assignments JSONB DEFAULT '{}'::jsonb,
+  available_targets JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Insertar estado inicial del juego
+INSERT INTO game_state (participants, assignments, available_targets) 
+VALUES (
+  '[]'::jsonb,
+  '{}'::jsonb,
+  '["carlitos", "paty", "diego", "leidy", "cristico", "zury", "anita", "santi", "alicia", "alberto", "alexito", "joa"]'::jsonb
+);
+
+-- Habilitar RLS (Row Level Security)
+ALTER TABLE game_state ENABLE ROW LEVEL SECURITY;
+
+-- Crear política para permitir lectura y escritura a todos
+CREATE POLICY "Enable read access for all users" ON game_state FOR SELECT USING (true);
+CREATE POLICY "Enable update access for all users" ON game_state FOR UPDATE USING (true);

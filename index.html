@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta Familiar – Picada de Cumpleaños</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.4.0/dist/confetti.browser.min.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="shortcut icon" href="https://cdn-icons-png.flaticon.com/128/931/931949.png" type="image/x-icon">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #0f0f1a;
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(255, 100, 100, 0.08) 0%, transparent 30%),
+                radial-gradient(circle at 90% 80%, rgba(100, 200, 255, 0.08) 0%, transparent 30%),
+                radial-gradient(circle at 50% 50%, rgba(255, 200, 100, 0.05) 0%, transparent 20%);
+            color: #e0e0e0;
+        }
+
+        .wheel {
+            transition: transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+        }
+
+        .wheel.spinning {
+            animation: spin 5s cubic-bezier(0.17, 0.67, 0.12, 0.99) forwards;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(var(--rotation));
+            }
+        }
+
+        /* Glass panel */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-panel-light {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        /* Participant cards */
+        .family-card {
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 14px 16px;
+            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(8px);
+            transition: transform 0.2s, border-color 0.3s;
+        }
+
+        .family-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(236, 72, 153, 0.4);
+        }
+
+        .family-card.assigned {
+            border-color: rgba(34, 197, 94, 0.3);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        /* Spin button */
+        .spin-button {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #f43f5e, #ec4899, #8b5cf6);
+            box-shadow: 0 8px 32px rgba(236, 72, 153, 0.3);
+        }
+
+        .spin-button:hover {
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 15px 40px rgba(236, 72, 153, 0.5);
+        }
+
+        .spin-button:active {
+            transform: scale(0.98);
+        }
+
+        .spin-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .spin-button:hover::before {
+            left: 100%;
+        }
+
+        /* Responsive wheel */
+        #wheel {
+            width: 100%;
+            height: auto;
+            max-width: 950px;
+            max-height: 950px;
+            filter: drop-shadow(0 0 50px rgba(236, 72, 153, 0.4));
+        }
+
+        @media (max-width: 640px) {
+            #wheel {
+                max-width: 450px;
+                max-height: 450px;
+            }
+        }
+
+        .status-badge {
+            font-size: 0.8em;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.completed {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .status-badge.pending {
+            background: rgba(250, 204, 21, 0.1);
+            color: #facc15;
+            border: 1px solid rgba(250, 204, 21, 0.2);
+        }
+
+        /* Product tag in results */
+        .product-tag {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 6px 0;
+        }
+
+        .product-tag img {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        /* Modal overlay */
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+        }
+
+        .modal-content {
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+
+        /* Title gradient animation */
+        .title-gradient {
+            background: linear-gradient(270deg, #f43f5e, #ec4899, #8b5cf6, #6366f1, #ec4899, #f43f5e);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientShift 4s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* Glow effect */
+        .glow-ring {
+            box-shadow: 0 0 30px rgba(236, 72, 153, 0.15), 0 0 60px rgba(139, 92, 246, 0.08);
+        }
+
+        /* Assigned products in card */
+        .assigned-product {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85em;
+            color: #a1a1aa;
+            padding: 2px 0;
+        }
+
+        .assigned-product img {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            object-fit: cover;
+        }
+
+        .price-tag {
+            color: #4ade80;
+            font-weight: 600;
+            font-size: 0.85em;
+        }
+
+        /* Store Tabs */
+        .store-tab.active {
+            background: linear-gradient(135deg, #ec4899, #f43f5e);
+            color: white !important;
+            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="flex items-center justify-center min-h-screen p-4">
+        <div class="glass-panel p-8 rounded-3xl shadow-xl max-w-md w-full border-t-4 border-pink-500 glow-ring">
+            <div class="text-center mb-8">
+                <div id="loginPhotoContainer"
+                    class="w-24 h-24 rounded-full border-4 border-pink-500 overflow-hidden mx-auto mb-4 shadow-lg glow-ring flex items-center justify-center bg-gray-800">
+                    <span id="loginEmoji" class="text-5xl">👨‍👩‍👧‍👦</span>
+                    <img id="loginPhoto" src="" alt="Familia" class="w-full h-full object-cover hidden">
+                </div>
+                <h1 class="text-3xl font-bold text-white mb-2">Picada Familiar</h1>
+                <p class="text-gray-400 font-medium">Celebrando a Alexander (26 Feb) y Padre Albert (3 Mar)</p>
+                <div class="mt-3 inline-block px-4 py-1 rounded-full text-sm font-bold"
+                    style="background: rgba(236,72,153,0.15); color: #f472b6; border: 1px solid rgba(236,72,153,0.3);">
+                    ~$36,000 por familia · 5 familias · Total ~$180,000
+                </div>
+            </div>
+            <form id="loginForm" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-bold text-gray-300 mb-2">¿Qué familia eres?</label>
+                    <select id="username"
+                        class="w-full p-4 bg-gray-800/80 border-2 border-gray-700 rounded-xl focus:ring-4 focus:ring-pink-500/30 focus:border-pink-500 outline-none transition-all text-lg cursor-pointer text-white"
+                        required>
+                        <option value="" disabled selected>Selecciona tu familia...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-300 mb-2">Contraseña</label>
+                    <input type="password" id="password" placeholder="Tu contraseña..."
+                        class="w-full p-4 bg-gray-800/80 border-2 border-gray-700 rounded-xl focus:ring-4 focus:ring-pink-500/30 focus:border-pink-500 outline-none transition-all text-white"
+                        required>
+                </div>
+                <button type="submit"
+                    class="w-full bg-gradient-to-r from-pink-500 via-rose-500 to-purple-500 text-white p-4 rounded-xl font-bold text-lg hover:from-pink-600 hover:via-rose-600 hover:to-purple-600 transform hover:scale-[1.02] transition-all shadow-lg shadow-pink-500/20">
+                    Entrar a la Picada 🎉
+                </button>
+            </form>
+            <div id="loginError"
+                class="text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-lg text-sm mt-4 text-center font-medium hidden">
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="gameScreen" class="hidden min-h-screen p-4 pb-12">
+        <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-8 pt-4">
+                <div class="flex justify-between items-center px-4 max-w-4xl mx-auto mb-4">
+                    <div class="w-24"></div>
+                    <button id="logoutButton"
+                        class="glass-panel-light hover:bg-white/10 text-gray-400 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
+                        Salir 👋
+                    </button>
+                </div>
+
+                <h1 class="text-4xl md:text-5xl font-black title-gradient mb-4">
+                    🎉 Ruleta Familiar Picada 🍖
+                </h1>
+
+                <div class="glass-panel p-4 rounded-2xl inline-flex items-center gap-6 max-w-2xl mx-auto mb-6">
+                    <div id="currentUserPhoto"
+                        class="w-16 h-16 rounded-full border-2 border-pink-500 overflow-hidden flex-shrink-0 shadow-lg glow-ring">
+                        <img src="" alt="Familia" class="w-full h-full object-cover">
+                    </div>
+                    <div class="text-left">
+                        <p class="text-gray-200 text-xl leading-tight">
+                            ¡Hola <span id="currentUser" class="font-bold text-pink-400"></span>! 👋
+                        </p>
+                        <p class="text-sm text-gray-400 mt-1">
+                            Gira la ruleta y descubre qué productos le tocan a tu familia.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid lg:grid-cols-12 gap-8 items-start">
+                <!-- Roulette Section -->
+                <div class="lg:col-span-7 flex flex-col items-center">
+                    <div
+                        class="glass-panel rounded-3xl shadow-2xl p-4 md:p-8 w-full flex flex-col items-center glow-ring">
+                        <div class="relative w-full flex justify-center items-center mb-8">
+                            <!-- Pointer -->
+                            <div
+                                class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-4 z-20 pointer-events-none">
+                                <div style="filter: drop-shadow(0 4px 12px rgba(239,68,68,0.5));">
+                                    <svg width="50" height="60" viewBox="0 0 50 60">
+                                        <path d="M 25 60 L 0 0 L 50 0 Z" fill="#ef4444" stroke="white" stroke-width="3"
+                                            stroke-linejoin="round" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Wheel Container -->
+                            <div class="relative transition-transform duration-300 transform hover:scale-[1.01]">
+                                <svg id="wheel" class="wheel" viewBox="0 0 800 800">
+                                    <!-- Wheel segments generated here -->
+                                </svg>
+
+                                <!-- Center Hub -->
+                                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full shadow-lg flex items-center justify-center z-10"
+                                    style="background: linear-gradient(145deg, #1a1a2e, #2d2d44); border: 4px solid rgba(255,255,255,0.2);">
+                                    <span class="text-4xl">🍖</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Controls -->
+                        <div class="text-center w-full max-w-md">
+                            <button id="spinButton"
+                                class="spin-button w-full text-white px-8 py-5 rounded-2xl text-2xl font-black mb-4 disabled:opacity-50 disabled:cursor-not-allowed">
+                                ¡GIRAR LA RULETA! 🎲
+                            </button>
+
+                            <div id="statusMessage" class="min-h-[3rem] flex items-center justify-center">
+                                <p class="text-gray-400 italic">¡Buena suerte familia!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Families List -->
+                <div class="lg:col-span-5">
+                    <div class="glass-panel rounded-3xl shadow-xl p-6 h-full relative overflow-hidden">
+                        <div
+                            class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500">
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-5 flex items-center gap-2 mt-2">
+                            <span>📋</span> Familias & Productos
+                        </h3>
+                        <div id="participantsList" class="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                            <!-- Family cards -->
+                        </div>
+
+                        <!-- Totals -->
+                        <div class="mt-6 pt-4 border-t border-white/10">
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-gray-400">Presupuesto promedio</span>
+                                <span class="text-pink-400 font-bold">$36,140</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm mt-1">
+                                <span class="text-gray-400">Total general</span>
+                                <span class="text-green-400 font-bold">$180,700</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nuestras Ubicaciones (Tabbed Section) -->
+            <div class="mt-8">
+                <div class="glass-panel rounded-3xl shadow-xl p-6 md:p-8 relative overflow-hidden">
+                    <div
+                        class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500">
+                    </div>
+                    <div class="text-center mb-6">
+                        <h3 class="text-xl md:text-2xl font-black text-white mb-1">📍 ¿Dónde comprar en Neiva?</h3>
+                        <p class="text-gray-400 text-sm">Selecciona una zona para ver los puntos de venta autorizados
+                        </p>
+                    </div>
+
+                    <!-- Tab Navigation -->
+                    <div
+                        class="flex flex-wrap justify-center gap-2 mb-8 p-1 bg-white/5 rounded-2xl border border-white/10">
+                        <button onclick="switchStoreZone('sur')" id="tab-sur"
+                            class="store-tab active flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all whitespace-nowrap">
+                            <span>📍</span> Sur
+                        </button>
+                        <button onclick="switchStoreZone('centro')" id="tab-centro"
+                            class="store-tab flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all text-gray-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
+                            <span>📍</span> Centro
+                        </button>
+                        <button onclick="switchStoreZone('norte')" id="tab-norte"
+                            class="store-tab flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all text-gray-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
+                            <span>📍</span> Norte
+                        </button>
+                    </div>
+
+                    <!-- Zone Containers -->
+                    <div id="zone-sur" class="zone-content space-y-6">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <!-- Salsamentaria Berlín -->
+                            <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                <div class="p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-red-500/20 text-red-400 flex-shrink-0">
+                                        🥩</div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-white font-bold text-sm truncate">Salsamentaria Berlín</p>
+                                        <p class="text-gray-400 text-xs truncate">Cra. 39 #23-03 Sur</p>
+                                    </div>
+                                </div>
+                                <iframe
+                                    src="https://maps.google.com/maps?q=Salsamentaria+Berl%C3%ADn+Cra+39+23-03+sur+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                            </div>
+                            <!-- Éxito Unicentro -->
+                            <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                <div class="p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-yellow-500/20 text-yellow-400 flex-shrink-0">
+                                        🛒</div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-white font-bold text-sm truncate">Éxito Unicentro Sur</p>
+                                        <p class="text-gray-400 text-xs truncate">Cl. 15 Sur #10-23</p>
+                                    </div>
+                                </div>
+                                <iframe
+                                    src="https://maps.google.com/maps?q=Exito+Unicentro+Neiva+Cl+15+Sur&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                            </div>
+                            <!-- Quesos El Monterey -->
+                            <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                <div class="p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-purple-500/20 text-purple-400 flex-shrink-0">
+                                        🧀</div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-white font-bold text-sm truncate">Quesos El Monterey</p>
+                                        <p class="text-gray-400 text-xs truncate">Cl. 16 Sur #22A-16</p>
+                                    </div>
+                                </div>
+                                <iframe
+                                    src="https://maps.google.com/maps?q=Quesos+Salsamentaria+El+Monterey+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                            </div>
+                            <!-- Carnes Las Brisas -->
+                            <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                <div class="p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-orange-500/20 text-orange-400 flex-shrink-0">
+                                        🍖</div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-white font-bold text-sm truncate">Carnes Las Brisas</p>
+                                        <p class="text-gray-400 text-xs truncate">Cra. 5 #17-27 Sur</p>
+                                    </div>
+                                </div>
+                                <iframe
+                                    src="https://maps.google.com/maps?q=Carnes+Las+Brisas+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="zone-centro" class="zone-content hidden space-y-6">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <!-- Éxito Centro -->
+                            <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                <div class="p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-yellow-500/20 text-yellow-400 flex-shrink-0">
+                                        🛒</div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-white font-bold text-sm truncate">Éxito Centro Neiva</p>
+                                        <p class="text-gray-400 text-xs truncate">C. 8 #2-21</p>
+                                    </div>
+                                </div>
+                                <iframe
+                                    src="https://maps.google.com/maps?q=Almacenes+Exito+Calle+8+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                            </div>
+                            <!-- Multinsumos Superior -->
+                            <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                <div class="p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-red-500/20 text-red-400 flex-shrink-0">
+                                        🥩</div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-white font-bold text-sm truncate">Multinsumos Superior</p>
+                                        <p class="text-gray-400 text-xs truncate">Cra. 2 #9-17</p>
+                                    </div>
+                                </div>
+                                <iframe
+                                    src="https://maps.google.com/maps?q=Salsamentaria+Multinsumos+Superior+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                            </div>
+                            <!-- El Rey del Huila -->
+                            <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                <div class="p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-red-500/20 text-red-400 flex-shrink-0">
+                                        🥩</div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-white font-bold text-sm truncate">El Rey del Huila</p>
+                                        <p class="text-gray-400 text-xs truncate">Cr. 2 #10-33</p>
+                                    </div>
+                                </div>
+                                <iframe
+                                    src="https://maps.google.com/maps?q=Salsamentaria+El+Rey+Del+Huila+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                            </div>
+                            <!-- La Carnicería -->
+                            <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                <div class="p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-orange-500/20 text-orange-400 flex-shrink-0">
+                                        🍖</div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-white font-bold text-sm truncate">La Carnicería</p>
+                                        <p class="text-gray-400 text-xs truncate">Cl. 21 con Cra. 5</p>
+                                    </div>
+                                </div>
+                                <iframe
+                                    src="https://maps.google.com/maps?q=La+Carniceria+Calle+21+Con+Cra+5+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="zone-norte" class="zone-content hidden space-y-6">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <!-- Éxito San Pedro -->
+                            <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                <div class="p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-yellow-500/20 text-yellow-400 flex-shrink-0">
+                                        🛒</div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-white font-bold text-sm truncate">Éxito San Pedro Plaza</p>
+                                        <p class="text-gray-400 text-xs truncate">Av. 26 con Cl. 39</p>
+                                    </div>
+                                </div>
+                                <iframe
+                                    src="https://maps.google.com/maps?q=Exito+San+Pedro+Plaza+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                            </div>
+                            <!-- Monte Rey -->
+                            <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                <div class="p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-red-500/20 text-red-400 flex-shrink-0">
+                                        🥩</div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-white font-bold text-sm truncate">Salsamentaria Monte Rey</p>
+                                        <p class="text-gray-400 text-xs truncate">Cl. 19 #40-56</p>
+                                    </div>
+                                </div>
+                                <iframe
+                                    src="https://maps.google.com/maps?q=Salsamentaria+Monte+Rey+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                            </div>
+                            <!-- Bonanza -->
+                            <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                <div class="p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-purple-500/20 text-purple-400 flex-shrink-0">
+                                        🧀</div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-white font-bold text-sm truncate">Quesera Bonanza</p>
+                                        <p class="text-gray-400 text-xs truncate">Cr. 30 #15-76</p>
+                                    </div>
+                                </div>
+                                <iframe
+                                    src="https://maps.google.com/maps?q=Quesera+Salsamentaria+Bonanza+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                            </div>
+                            <!-- La Avenida -->
+                            <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                <div class="p-4 flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-red-500/20 text-red-400 flex-shrink-0">
+                                        🥩</div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-white font-bold text-sm truncate">Salsamentaria La Avenida</p>
+                                        <p class="text-gray-400 text-xs truncate">Cr. 9 #16-36</p>
+                                    </div>
+                                </div>
+                                <iframe
+                                    src="https://maps.google.com/maps?q=Salsamentaria+La+Avenida+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Modal -->
+    <div id="resultModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50 p-4">
+        <div
+            class="modal-content rounded-3xl shadow-2xl max-w-lg w-full p-8 text-center relative overflow-hidden transform transition-all scale-100 max-h-[90vh] overflow-y-auto">
+            <div class="text-5xl mb-4">🎊</div>
+            <h2 class="text-3xl font-black text-white mb-2">¡A tu familia le tocó!</h2>
+            <p class="text-gray-400 text-sm mb-4">Estos son los productos que deben traer:</p>
+
+            <div id="resultProducts" class="my-4 space-y-2 text-left">
+                <!-- Products injected here -->
+            </div>
+
+            <div id="resultTotal" class="mt-4 mb-4 py-3 px-4 rounded-xl text-center"
+                style="background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.2);">
+                <span class="text-gray-400 text-sm">Total del combo:</span>
+                <span class="text-green-400 text-2xl font-black ml-2">$0</span>
+            </div>
+
+            <!-- Mensaje de llevar algo extra -->
+            <div class="mb-4 py-3 px-4 rounded-xl text-center"
+                style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.25);">
+                <p class="text-purple-300 text-sm font-semibold mb-1">🎁 ¿Desean llevar alguito más?</p>
+                <p class="text-gray-400 text-xs">¡Bienvenidos a traer lo que quieran aparte de lo que ya les tocó! Toda
+                    ayuda suma para que la picada quede brutal 🔥</p>
+            </div>
+
+            <!-- Frase de la cerveza -->
+            <div class="mb-4 py-4 px-4 rounded-xl text-center"
+                style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.15), rgba(245, 158, 11, 0.1)); border: 1px solid rgba(234, 179, 8, 0.3);">
+                <p class="text-3xl mb-1">🍺🍻🍺</p>
+                <p class="font-black text-lg" style="color: #fbbf24;">¡LA CERVEZA ES LO MÁS IMPORTANTE!</p>
+                <p class="text-yellow-200/80 text-sm mt-1">"Sin cerveza no hay picada que valga" 🎉</p>
+                <p class="text-yellow-300/60 text-xs mt-1 italic">El que llega con cervecita, llega con la bendición de
+                    todos 🙌🍻</p>
+            </div>
+
+            <p class="text-gray-500 text-sm mb-4">
+                ¡Gracias por colaborar con la picada! 🎉<br>
+                Toma captura para que no se te olvide. 📸
+            </p>
+
+            <button id="closeModal" class="w-full text-white px-6 py-4 rounded-xl font-bold transition-all"
+                style="background: linear-gradient(135deg, #374151, #1f2937); border: 1px solid rgba(255,255,255,0.1);">
+                ¡Entendido! 👍
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        // --- CONFIGURACIÓN ---
+        const SUPABASE_URL = 'https://buxecmnngbtzycmzojim.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1eGVjbW5uZ2J0enljbXpvamltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg0MTM0MzUsImV4cCI6MjA3Mzk4OTQzNX0.U5k3KCHs7VE5VJjFwD2SLTMUZ7vl-iA5FzAayZ1Hd14';
+
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // --- 5 FAMILIAS ---
+        const FAMILIES = {
+            'barbosa_rivas': {
+                password: 'rivas',
+                name: 'Fam. Barbosa Rivas',
+                emoji: '🏠👪',
+                image: 'https://scontent.fnva2-1.fna.fbcdn.net/v/t1.6435-9/60775345_101089194473194_5466277196278530048_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=2a1932&_nc_eui2=AeH7ADiQ2RefKt4MER0QN5uuMYKr-0MRMO0xgqv7QxEw7T41-qCkOMA655vgpHGErMhQ4Irw-Pl1gtDTt6SFqJkx&_nc_ohc=Fzp0RAZ3FXoQ7kNvwH9yrn9&_nc_oc=Adl1uOgAD18OmOqjQhwDH6bRrrt3orCpADI6ixsERRdLBl81oXF3CSJWyDaTgkyvcNw&_nc_zt=23&_nc_ht=scontent.fnva2-1.fna&_nc_gid=4W3k_J6nSONZPh4Ls-fYqg&oh=00_AfvLwjaccaEqLgOov4_vYO_bXkZdWlaOlXrvfu-jcW8rdA&oe=69BC2E95'
+            },
+            'barbosa_echeverry': {
+                password: 'echeverry',
+                name: 'Fam. Barbosa Echeverry',
+                emoji: '🏠👪',
+                image: 'https://scontent.fnva2-1.fna.fbcdn.net/v/t39.30808-6/606599012_10163162664392702_7244238946449470760_n.jpg?_nc_cat=110&ccb=1-7&_nc_sid=1d70fc&_nc_eui2=AeElgi3VnjCgdUgCrNOHsxDFYkEp6lNQod9iQSnqU1Ch38qmWwpWNnDH02zkKrn6ra_5Z94HDbHFhPXfP4otVnMG&_nc_ohc=W-1Vzlvthq4Q7kNvwG_fHKQ&_nc_oc=AdnGJ1XgOi9fzFgdb9-jPHt4ySHhJzxviOcInU8wC1N_xgZ1NwvCwpB0hZxuaER7u9I&_nc_zt=23&_nc_ht=scontent.fnva2-1.fna&_nc_gid=5MT1lHV8B2Q70OI1FzeDsg&oh=00_Afs71x8WY1ibRE3s6j9IKH-3njAeDx6lxkqv-uzU9FAnXQ&oe=699A8FFD'
+            },
+            'barbosa_rojas': {
+                password: 'rojas',
+                name: 'Fam. Barbosa Rojas',
+                emoji: '🏠👪',
+                image: 'https://scontent.fnva2-1.fna.fbcdn.net/v/t39.30808-6/513595807_30094225480193030_1281682439419672346_n.jpg?_nc_cat=111&ccb=1-7&_nc_sid=1d70fc&_nc_eui2=AeFOKnQRhQrugJZ6a9w1L73xhOqQLqDG2SqE6pAuoMbZKsWe-Gnlxkmn6IfA_GuXswWANdrH-BZK2C-IZQAnF4rJ&_nc_ohc=OZpjEBsiY9oQ7kNvwGrZ_Zt&_nc_oc=Adn15SMLvyFLbSjB4Dsacguc0SfnEqHb1BWC8XtITIikv4BEE82lUbkMU-N_cFKyvP8&_nc_zt=23&_nc_ht=scontent.fnva2-1.fna&_nc_gid=GGmBSQQFT6e4gmY9W1IXvA&oh=00_AfuazElNMtBoSKLxnOvx1EmZffJ7z-AzPlfgYaeHGmETaQ&oe=699A9F10'
+            },
+            'barbosa_cuasanchir': {
+                password: 'cuasanchir',
+                name: 'Fam. Barbosa Cuasanchir',
+                emoji: '🏠👪',
+                image: 'https://scontent.fnva2-1.fna.fbcdn.net/v/t39.30808-6/483929160_28779854684993377_8489760226749970926_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=7b2446&_nc_eui2=AeG20DAyHJIt7tkm6rU4MhYju1mK3F7I2iq7WYrcXsjaKrg1bo7KvfpOahsCbhEChmvnYzV6viiNnDHf7RaCZDAs&_nc_ohc=Ltz8cDv1XjkQ7kNvwGNtjLL&_nc_oc=AdkAN3zu49yc55rVK7iOD_uQrqE0tOdxgwgmc8dBIn_s0ghK0tE1ZBj4akoPzd3fJCw&_nc_zt=23&_nc_ht=scontent.fnva2-1.fna&_nc_gid=MbPT-N-SPimnx858ZOmK9Q&oh=00_AftIyrrD3oLGBurXNe1aOJ1x3ydu6GMeg0Qcn3SHPJYCfQ&oe=699A934C'
+            },
+            'barbosa_moreno': {
+                password: 'moreno',
+                name: 'Fam. Barbosa Moreno',
+                emoji: '🏠👪',
+                image: 'https://scontent.fnva2-1.fna.fbcdn.net/v/t1.6435-9/116872326_2647018068855214_2237530993348958821_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=2a1932&_nc_eui2=AeEDjkNqueXC_xbzWcn4oiUZJX2nGRqE4oolfacZGoTiirkN5C5xxayLOpfnoF_5iCGBBHRgwWzkonf2NnaGuzTI&_nc_ohc=a-n_mxg9IxMQ7kNvwE45NKR&_nc_oc=Adk1LnW4x2_ASZ7D2KZk60KdI-l3hMwZ8z5t_4a7peqJ2_aRtK3o7Ma_AuTxLo2BRow&_nc_zt=23&_nc_ht=scontent.fnva2-1.fna&_nc_gid=WPEXTfRl0ogAK5k6C7ZHhw&oh=00_AfvQsL1SVFJUtuf2HqdkuALxjn99QNG3b2T3HmNPlXUGvg&oe=69BC2972'
+            }
+        };
+
+        // --- TODOS LOS PRODUCTOS CON PRECIOS ---
+        const ALL_PRODUCTS = [
+            { id: 'salchicha', label: 'Salchicha Americana x20', price: 24000, image: 'https://assets.tmecosys.com/image/upload/t_web_rdp_recipe_584x480/img/recipe/ras/Assets/F14BBB72-8631-4925-9E26-23F003784655/Derivates/024eb746-9f81-440e-8b95-adba1bd56229.jpg' },
+            { id: 'papa_comun', label: 'Papa Común 2.5kg', price: 18000, image: 'https://www.elespectador.com/resizer/v2/ZKWFICTVEJAMVG5VK2ISRYCM5M.jpg?auth=fc1bd931425f776fdf85dedcb50607961d38d85e823517ba47354fbcf0406904&width=920&height=613&smart=true&quality=60' },
+            { id: 'papa_criolla', label: 'Papa Criolla 2kg', price: 20000, image: 'https://www.elespectador.com/resizer/v2/ZKWFICTVEJAMVG5VK2ISRYCM5M.jpg?auth=fc1bd931425f776fdf85dedcb50607961d38d85e823517ba47354fbcf0406904&width=920&height=613&smart=true&quality=60' },
+            { id: 'papa_ripio', label: 'Papa Ripio 1lb', price: 8000, image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSuFtiUlLBgTzgNFoidG7XfUdHytn6TNrqwMg&s' },
+            { id: 'queso', label: 'Queso en Lonchis', price: 10000, image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRoF5T6Gyg808ApsKSTCEVBDQPKMt7PDw4kSw&s' },
+            { id: 'chorizo', label: 'Chorizo', price: 25000, image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSOsYhuDrxc7ThLGnf9Fc5IymD_7rIhQqbaYg&s' },
+            { id: 'hamburguesa', label: 'Carne de Hamburguesa', price: 12000, image: 'https://perurena1974.com/cdn/shop/files/rn-image_picker_lib_temp_0bf6e7e6-b269-47a5-a78d-70220367d004.jpg?v=1705855030&width=1445' },
+            { id: 'maiz', label: 'Maíz Tierno 1L', price: 8000, image: 'https://eurosuper.vteximg.com.br/arquivos/ids/185158-292-292/7702014523065.png?v=638557255901730000?1770163200013' },
+            { id: 'codorniz', label: 'Huevo de Codorniz x24', price: 5500, image: 'https://santareyes.com.co/wp-content/uploads/2022/04/Porductos-10.png.webp' },
+            { id: 'platos', label: 'Platos x20', price: 3700, image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTnE5lFxJ_2A6x2IZ666WmOt8rLpp8eKPPsLA&s' },
+            { id: 'vasos', label: 'Vasos x50', price: 2000, image: 'https://www.bolsasyempaquescolombia.com/cdn/shop/files/9ONZ.png?v=1708390853&width=1754' },
+            { id: 'tenedor', label: 'Tenedor x50', price: 3500, image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSW8IqUKwpxwFvTT_JAEge0hLfI242xCTwGUw&s' },
+            { id: 'aceite', label: 'Aceite 3L', price: 20000, image: 'https://exitocol.vtexassets.com/arquivos/ids/29609993/Aceite-Vegetal-FRESCAMPO-3000-ml-3257073_a.jpg?v=638906039934770000' },
+            { id: 'gaseosas', label: 'Gaseosas x2', price: 12000, image: 'https://dneyla.com/wp-content/uploads/2022/05/Gaseosa-2.5-LITROS.jpg' },
+            { id: 'salsa_maiz', label: 'Salsa de Maíz', price: 3000, image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQi98_XpKRHw3mijeEfBN8gO7EDmjn-ut2vg&s' },
+            { id: 'salsa_bbq', label: 'Salsa BBQ', price: 3000, image: 'https://eurosuper.vtexassets.com/arquivos/ids/195040/7702097148537.jpg?v=639041705504270000' },
+            { id: 'salsa_rosada', label: 'Salsa Rosada', price: 3000, image: 'https://ecommerce.surtifamiliar.com/backend/admin/backend/web/archivosDelCliente/items/images/20240618113514-Salsas-Salsas-Rosadas-Salsa-la-Constancia-x190g-Rosada-3683420240618113514367.webp' }
+        ];
+
+        // --- 5 COMBOS PRE-ARMADOS (~$30,000 cada uno, 2-3 productos) ---
+        const COMBOS = [
+            {
+                id: 'combo_1',
+                name: 'Combo Chorizo',
+                color: '#dc2626',
+                colorLight: '#fca5a5',
+                image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSOsYhuDrxc7ThLGnf9Fc5IymD_7rIhQqbaYg&s',
+                products: ['chorizo', 'maiz', 'vasos'],
+            },
+            {
+                id: 'combo_2',
+                name: 'Combo Salchicha',
+                color: '#ea580c',
+                colorLight: '#fdba74',
+                image: 'https://assets.tmecosys.com/image/upload/t_web_rdp_recipe_584x480/img/recipe/ras/Assets/F14BBB72-8631-4925-9E26-23F003784655/Derivates/024eb746-9f81-440e-8b95-adba1bd56229.jpg',
+                products: ['salchicha', 'salsa_bbq', 'salsa_rosada', 'salsa_maiz', 'codorniz'],
+            },
+            {
+                id: 'combo_3',
+                name: 'Combo Hamburguesa & Aceite',
+                color: '#7c3aed',
+                colorLight: '#c4b5fd',
+                image: 'https://perurena1974.com/cdn/shop/files/rn-image_picker_lib_temp_0bf6e7e6-b269-47a5-a78d-70220367d004.jpg?v=1705855030&width=1445',
+                products: ['aceite', 'hamburguesa', 'platos'],
+            },
+            {
+                id: 'combo_4',
+                name: 'Combo Papas Criollas',
+                color: '#0891b2',
+                colorLight: '#67e8f9',
+                image: 'https://www.elespectador.com/resizer/v2/ZKWFICTVEJAMVG5VK2ISRYCM5M.jpg?auth=fc1bd931425f776fdf85dedcb50607961d38d85e823517ba47354fbcf0406904&width=920&height=613&smart=true&quality=60',
+                products: ['papa_criolla', 'gaseosas', 'tenedor'],
+            },
+            {
+                id: 'combo_5',
+                name: 'Combo Común y Queso',
+                color: '#16a34a',
+                colorLight: '#86efac',
+                image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRoF5T6Gyg808ApsKSTCEVBDQPKMt7PDw4kSw&s',
+                products: ['papa_comun', 'queso', 'papa_ripio'],
+            }
+        ];
+
+        function getProduct(id) {
+            return ALL_PRODUCTS.find(p => p.id === id);
+        }
+
+        function getComboTotal(combo) {
+            return combo.products.reduce((sum, pid) => {
+                const p = getProduct(pid);
+                return sum + (p ? p.price : 0);
+            }, 0);
+        }
+
+        function formatPrice(n) {
+            return '$' + n.toLocaleString('es-CO');
+        }
+
+        // --- ESTADO GLOBAL ---
+        let currentUser = null;
+        let gameData = {
+            participants: [],
+            assignments: {},       // { 'barbosa_rivas': 'combo_1', ... }
+            availableCombos: COMBOS.map(c => c.id)
+        };
+
+        // --- SONIDOS ---
+        const playSound = (type) => {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                const now = ctx.currentTime;
+                if (type === 'spin') {
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.linearRampToValueAtTime(800, now + 0.15);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.linearRampToValueAtTime(0.001, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'win') {
+                    [440, 554, 659, 880].forEach((freq, i) => {
+                        const osc2 = ctx.createOscillator();
+                        const gain2 = ctx.createGain();
+                        osc2.connect(gain2);
+                        gain2.connect(ctx.destination);
+                        const t = now + i * 0.12;
+                        osc2.frequency.value = freq;
+                        gain2.gain.setValueAtTime(0.08, t);
+                        gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+                        osc2.start(t);
+                        osc2.stop(t + 0.3);
+                    });
+                }
+            } catch (e) { console.error(e); }
+        };
+
+        // --- SUPABASE ---
+        async function getGameState() {
+            try {
+                const { data, error } = await supabaseClient.from('birthday_game_state').select('*').limit(1).single();
+                if (error || !data) return null;
+                return {
+                    participants: data.participants || [],
+                    assignments: data.assignments || {},
+                    availableCombos: data.available_items || COMBOS.map(c => c.id)
+                };
+            } catch (e) {
+                console.error('Error fetching state:', e);
+                return null;
+            }
+        }
+
+        async function updateGameState(newState) {
+            try {
+                const { data: existing } = await supabaseClient.from('birthday_game_state').select('id').limit(1);
+                let error;
+                if (existing && existing.length > 0) {
+                    const { error: updateError } = await supabaseClient
+                        .from('birthday_game_state')
+                        .update({
+                            participants: newState.participants,
+                            assignments: newState.assignments,
+                            available_items: newState.availableCombos,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', existing[0].id);
+                    error = updateError;
+                } else {
+                    const { error: insertError } = await supabaseClient
+                        .from('birthday_game_state')
+                        .insert([{
+                            participants: newState.participants,
+                            assignments: newState.assignments,
+                            available_items: newState.availableCombos
+                        }]);
+                    error = insertError;
+                }
+                if (error) throw error;
+                gameData = newState;
+                return true;
+            } catch (e) {
+                console.error('Error saving state:', e);
+                return false;
+            }
+        }
+
+        function subscribeToChanges() {
+            supabaseClient
+                .channel('birthday_game')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'birthday_game_state' }, payload => {
+                    if (payload.new) {
+                        gameData = {
+                            participants: payload.new.participants || [],
+                            assignments: payload.new.assignments || {},
+                            availableCombos: payload.new.available_items || []
+                        };
+                        updateUI();
+                    }
+                })
+                .subscribe();
+        }
+
+        // --- UI ---
+        function initLoginDropdown() {
+            const select = document.getElementById('username');
+            select.innerHTML = '<option value="" disabled selected>Selecciona tu familia...</option>';
+            Object.keys(FAMILIES).forEach(key => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = FAMILIES[key].emoji + ' ' + FAMILIES[key].name;
+                select.appendChild(option);
+            });
+
+            // Update photo on selection
+            select.addEventListener('change', (e) => {
+                const family = FAMILIES[e.target.value];
+                const photo = document.getElementById('loginPhoto');
+                const emoji = document.getElementById('loginEmoji');
+                if (family && family.image) {
+                    photo.src = family.image;
+                    photo.classList.remove('hidden');
+                    emoji.classList.add('hidden');
+                } else {
+                    photo.classList.add('hidden');
+                    emoji.classList.remove('hidden');
+                }
+            });
+        }
+
+        function createWheel() {
+            const wheel = document.getElementById('wheel');
+            wheel.innerHTML = '';
+
+            const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+            wheel.appendChild(defs);
+
+            const count = COMBOS.length;
+            const anglePerSegment = 360 / count;
+
+            COMBOS.forEach((combo, index) => {
+                const startAngle = index * anglePerSegment;
+                const endAngle = (index + 1) * anglePerSegment;
+                const radius = 380;
+                const center = 400;
+
+                const x1 = center + radius * Math.cos(Math.PI * (startAngle - 90) / 180);
+                const y1 = center + radius * Math.sin(Math.PI * (startAngle - 90) / 180);
+                const x2 = center + radius * Math.cos(Math.PI * (endAngle - 90) / 180);
+                const y2 = center + radius * Math.sin(Math.PI * (endAngle - 90) / 180);
+
+                const largeArcFlag = anglePerSegment > 180 ? 1 : 0;
+                const pathData = `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+                // Segment path with shadow
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("d", pathData);
+                path.setAttribute("fill", combo.color);
+                path.setAttribute("stroke", "rgba(255,255,255,0.4)");
+                path.setAttribute("stroke-width", "3");
+                g.appendChild(path);
+
+                // Inner glow path
+                const pathGlow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const innerRadius = 370;
+                const ix1 = center + innerRadius * Math.cos(Math.PI * (startAngle - 90) / 180);
+                const iy1 = center + innerRadius * Math.sin(Math.PI * (startAngle - 90) / 180);
+                const ix2 = center + innerRadius * Math.cos(Math.PI * (endAngle - 90) / 180);
+                const iy2 = center + innerRadius * Math.sin(Math.PI * (endAngle - 90) / 180);
+                const innerPath = `M ${center} ${center} L ${ix1} ${iy1} A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 1 ${ix2} ${iy2} Z`;
+                pathGlow.setAttribute("d", innerPath);
+                pathGlow.setAttribute("fill", "white");
+                pathGlow.setAttribute("opacity", "0.08");
+                g.appendChild(pathGlow);
+
+                const textAngle = startAngle + anglePerSegment / 2;
+
+                // --- REAL IMAGE ---
+                const imageRadius = 290;
+                const size = 110;
+                const ix = center + imageRadius * Math.cos(Math.PI * (textAngle - 90) / 180);
+                const iy = center + imageRadius * Math.sin(Math.PI * (textAngle - 90) / 180);
+
+                // Clip for circular image
+                const clipId = `clip-${index}`;
+                const clipPath = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
+                clipPath.setAttribute("id", clipId);
+                const clipCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                clipCircle.setAttribute("cx", ix);
+                clipCircle.setAttribute("cy", iy);
+                clipCircle.setAttribute("r", size / 2);
+                clipPath.appendChild(clipCircle);
+                defs.appendChild(clipPath);
+
+                // Image
+                const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+                image.setAttributeNS("http://www.w3.org/1999/xlink", "href", combo.image);
+                image.setAttribute("x", ix - size / 2);
+                image.setAttribute("y", iy - size / 2);
+                image.setAttribute("width", size);
+                image.setAttribute("height", size);
+                image.setAttribute("clip-path", `url(#${clipId})`);
+                image.setAttribute("transform", `rotate(${textAngle}, ${ix}, ${iy})`);
+                g.appendChild(image);
+
+                // Border for image
+                const imgBorder = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                imgBorder.setAttribute("cx", ix);
+                imgBorder.setAttribute("cy", iy);
+                imgBorder.setAttribute("r", size / 2);
+                imgBorder.setAttribute("fill", "none");
+                imgBorder.setAttribute("stroke", "white");
+                imgBorder.setAttribute("stroke-width", "3");
+                imgBorder.setAttribute("transform", `rotate(${textAngle}, ${ix}, ${iy})`);
+                g.appendChild(imgBorder);
+
+                // --- TEXT ---
+                // Label text (Multi-line support)
+                const labelRadius = 210;
+                const lx = center + labelRadius * Math.cos(Math.PI * (textAngle - 90) / 180);
+                const ly = center + labelRadius * Math.sin(Math.PI * (textAngle - 90) / 180);
+
+                const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                label.setAttribute("x", lx);
+                label.setAttribute("y", ly);
+                label.setAttribute("text-anchor", "middle");
+                label.setAttribute("dominant-baseline", "middle");
+                label.setAttribute("transform", `rotate(${textAngle}, ${lx}, ${ly})`);
+                label.setAttribute("fill", "white");
+                label.setAttribute("font-family", "Fredoka, sans-serif");
+                label.style.textShadow = "0 3px 6px rgba(0,0,0,0.6)";
+
+                // Split text into lines if it has " & " or is long
+                const words = combo.name.split(' ');
+                if (words.length > 2 || combo.name.includes('&')) {
+                    label.setAttribute("font-size", "22");
+                    label.setAttribute("font-weight", "800");
+
+                    // Simple split logic: if contains '&', split there. Otherwise split roughly in half.
+                    let lines = [];
+                    if (combo.name.includes(' & ')) {
+                        lines = combo.name.split(' & ');
+                        lines[0] = lines[0] + ' &';
+                    } else {
+                        const mid = Math.ceil(words.length / 2);
+                        lines = [words.slice(0, mid).join(' '), words.slice(mid).join(' ')];
+                    }
+
+                    lines.forEach((line, i) => {
+                        const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+                        tspan.setAttribute("x", lx);
+                        tspan.setAttribute("dy", i === 0 ? "-0.6em" : "1.2em");
+                        tspan.textContent = line;
+                        label.appendChild(tspan);
+                    });
+                } else {
+                    label.setAttribute("font-size", "28");
+                    label.setAttribute("font-weight", "900");
+                    label.textContent = combo.name;
+                }
+                g.appendChild(label);
+
+                // Price (Larger)
+                const priceRadius = 160;
+                const px = center + priceRadius * Math.cos(Math.PI * (textAngle - 90) / 180);
+                const py = center + priceRadius * Math.sin(Math.PI * (textAngle - 90) / 180);
+
+                const priceLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                priceLabel.setAttribute("x", px);
+                priceLabel.setAttribute("y", py);
+                priceLabel.setAttribute("text-anchor", "middle");
+                priceLabel.setAttribute("dominant-baseline", "middle");
+                priceLabel.setAttribute("transform", `rotate(${textAngle}, ${px}, ${py})`);
+                priceLabel.setAttribute("fill", "rgba(255,255,255,0.95)");
+                priceLabel.setAttribute("font-size", "20");
+                priceLabel.setAttribute("font-weight", "700");
+                priceLabel.setAttribute("font-family", "Fredoka, sans-serif");
+                priceLabel.textContent = formatPrice(getComboTotal(combo));
+                g.appendChild(priceLabel);
+
+                wheel.appendChild(g);
+            });
+
+            // Outer decorative ring
+            const outerRing = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            outerRing.setAttribute("cx", "400");
+            outerRing.setAttribute("cy", "400");
+            outerRing.setAttribute("r", "382");
+            outerRing.setAttribute("fill", "none");
+            outerRing.setAttribute("stroke", "rgba(255,255,255,0.3)");
+            outerRing.setAttribute("stroke-width", "6");
+            wheel.appendChild(outerRing);
+        }
+
+        function updateUI() {
+            const list = document.getElementById('participantsList');
+            list.innerHTML = '';
+
+            // Sort: assigned first
+            const sortedFamilies = Object.keys(FAMILIES).sort((a, b) => {
+                const aAssigned = gameData.assignments[a] ? 1 : 0;
+                const bAssigned = gameData.assignments[b] ? 1 : 0;
+                return bAssigned - aAssigned || FAMILIES[a].name.localeCompare(FAMILIES[b].name);
+            });
+
+            sortedFamilies.forEach(familyKey => {
+                const assignedComboId = gameData.assignments[familyKey];
+                const assignedCombo = COMBOS.find(c => c.id === assignedComboId);
+                const family = FAMILIES[familyKey];
+
+                const card = document.createElement('div');
+                card.className = `family-card ${assignedCombo ? 'assigned' : ''}`;
+
+                let productsHTML = '';
+                if (assignedCombo) {
+                    productsHTML = assignedCombo.products.map(pid => {
+                        const p = getProduct(pid);
+                        return `<div class="assigned-product">
+                            <img src="${p.image}" onerror="this.style.display='none'">
+                            <span>${p.label}</span>
+                            <span class="price-tag ml-auto">${formatPrice(p.price)}</span>
+                        </div>`;
+                    }).join('');
+                }
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-white/10 shadow-md">
+                                <img src="${family.image}" class="w-full h-full object-cover">
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white text-base">${family.name}</h4>
+                                ${assignedCombo
+                        ? `<span class="text-xs font-bold" style="color: ${assignedCombo.colorLight}">${assignedCombo.name}</span>`
+                        : '<span class="text-xs text-gray-500">Aún no ha girado</span>'}
+                            </div>
+                        </div>
+                        ${assignedCombo
+                        ? `<span class="status-badge completed">Listo ✅</span>`
+                        : `<span class="status-badge pending">Pendiente</span>`}
+                    </div>
+                    ${productsHTML ? `<div class="mt-2 ml-9 border-t border-white/5 pt-2">${productsHTML}</div>` : ''}
+                    ${assignedCombo ? `<div class="mt-2 ml-9 text-right"><span class="text-green-400 font-bold text-sm">Total: ${formatPrice(getComboTotal(assignedCombo))}</span></div>` : ''}
+                `;
+                list.appendChild(card);
+            });
+
+            // Spin button state
+            const spinBtn = document.getElementById('spinButton');
+            const msg = document.getElementById('statusMessage');
+
+            if (gameData.assignments[currentUser]) {
+                spinBtn.disabled = true;
+                spinBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                spinBtn.textContent = "¡YA PARTICIPARON! ✅";
+                const myCombo = COMBOS.find(c => c.id === gameData.assignments[currentUser]);
+                const productNames = myCombo.products.map(pid => getProduct(pid)?.label).join(', ');
+                msg.innerHTML = `<p class="text-pink-400 font-bold text-sm">Les tocó: ${myCombo.name} — ${productNames}</p>`;
+            } else if (gameData.availableCombos.length === 0) {
+                spinBtn.disabled = true;
+                spinBtn.textContent = "¡TODO ASIGNADO! ⛔";
+                msg.innerHTML = `<p class="text-gray-400">Ya todas las familias tienen su combo.</p>`;
+            } else {
+                spinBtn.disabled = false;
+                spinBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                spinBtn.textContent = "¡GIRAR LA RULETA! 🎲";
+                msg.innerHTML = `<p class="text-gray-400 italic">¡Es el turno de tu familia! Toca el botón.</p>`;
+            }
+        }
+
+        // --- GAME LOGIC ---
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('loginError');
+
+            if (FAMILIES[username] && FAMILIES[username].password === password) {
+                currentUser = username;
+                localStorage.setItem('currentUser', username);
+
+                document.getElementById('currentUser').textContent = FAMILIES[username].name;
+                document.querySelector('#currentUserPhoto img').src = FAMILIES[username].image;
+
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('gameScreen').classList.remove('hidden');
+
+                createWheel();
+
+                const serverState = await getGameState();
+                if (serverState) {
+                    gameData = serverState;
+                }
+                subscribeToChanges();
+                updateUI();
+            } else {
+                errorDiv.textContent = 'Contraseña incorrecta 🕵️‍♂️';
+                errorDiv.classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('spinButton').addEventListener('click', async () => {
+            if (gameData.assignments[currentUser]) return;
+
+            const available = gameData.availableCombos;
+            if (available.length === 0) {
+                Swal.fire('¡Ups!', 'Ya no quedan combos disponibles.', 'warning');
+                return;
+            }
+
+            playSound('spin');
+
+            // Pick random available combo
+            const randomIndex = Math.floor(Math.random() * available.length);
+            const selectedComboId = available[randomIndex];
+
+            // Find combo index on the wheel for angle calculation
+            const comboIndex = COMBOS.findIndex(c => c.id === selectedComboId);
+            const segmentAngle = 360 / COMBOS.length;
+
+            const fullSpins = 6 + Math.floor(Math.random() * 5);
+            const targetRotation = (fullSpins * 360) - 90 - (comboIndex * segmentAngle) - (segmentAngle / 2);
+
+            const wheel = document.getElementById('wheel');
+            wheel.style.setProperty('--rotation', `${targetRotation}deg`);
+            wheel.classList.add('spinning');
+
+            // Disable button during spin
+            const spinBtn = document.getElementById('spinButton');
+            spinBtn.disabled = true;
+            spinBtn.textContent = "🎡 Girando...";
+
+            setTimeout(async () => {
+                wheel.classList.remove('spinning');
+                wheel.style.transform = `rotate(${targetRotation}deg)`;
+
+                playSound('win');
+                confetti({
+                    particleCount: 200,
+                    spread: 80,
+                    origin: { y: 0.6 },
+                    colors: ['#f43f5e', '#ec4899', '#8b5cf6', '#6366f1', '#facc15']
+                });
+
+                // Update state
+                const newAvailable = [...gameData.availableCombos];
+                const removalIndex = newAvailable.indexOf(selectedComboId);
+                if (removalIndex > -1) newAvailable.splice(removalIndex, 1);
+
+                const newAssignment = { ...gameData.assignments, [currentUser]: selectedComboId };
+
+                const success = await updateGameState({
+                    participants: [...gameData.participants, { username: currentUser, comboId: selectedComboId }],
+                    assignments: newAssignment,
+                    availableCombos: newAvailable
+                });
+
+                if (success) {
+                    showResult(selectedComboId);
+                } else {
+                    if (!gameData.assignments[currentUser]) {
+                        gameData.assignments = newAssignment;
+                        gameData.availableCombos = newAvailable;
+                        gameData.participants.push({ username: currentUser, comboId: selectedComboId });
+                        showResult(selectedComboId);
+                        updateUI();
+                    }
+                }
+            }, 5000);
+        });
+
+        function showResult(comboId) {
+            const combo = COMBOS.find(c => c.id === comboId);
+            const modal = document.getElementById('resultModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            // Build products list
+            const productsContainer = document.getElementById('resultProducts');
+            productsContainer.innerHTML = combo.products.map(pid => {
+                const p = getProduct(pid);
+                return `
+                    <div class="product-tag">
+                        <img src="${p.image}" onerror="this.style.display='none'" alt="${p.label}">
+                        <div class="flex-1">
+                            <div class="text-white font-bold text-sm">${p.label}</div>
+                        </div>
+                        <div class="price-tag text-base">${formatPrice(p.price)}</div>
+                    </div>
+                `;
+            }).join('');
+
+            // Total
+            document.getElementById('resultTotal').innerHTML = `
+                <span class="text-gray-400 text-sm">Total del combo:</span>
+                <span class="text-green-400 text-2xl font-black ml-2">${formatPrice(getComboTotal(combo))}</span>
+            `;
+        }
+
+        document.getElementById('closeModal').addEventListener('click', () => {
+            document.getElementById('resultModal').classList.add('hidden');
+            document.getElementById('resultModal').classList.remove('flex');
+            updateUI();
+        });
+
+        // --- STORE TABS ---
+        function switchStoreZone(zone) {
+            // Hide all zone contents
+            document.querySelectorAll('.zone-content').forEach(el => el.classList.add('hidden'));
+
+            // Reset all tab styles
+            document.querySelectorAll('.store-tab').forEach(el => {
+                el.classList.remove('active');
+                el.classList.add('text-gray-400', 'hover:text-white', 'hover:bg-white/5');
+            });
+
+            // Show current zone content
+            document.getElementById(`zone-${zone}`).classList.remove('hidden');
+
+            // Set current tab as active
+            const activeTab = document.getElementById(`tab-${zone}`);
+            activeTab.classList.add('active');
+            activeTab.classList.remove('text-gray-400', 'hover:text-white', 'hover:bg-white/5');
+        }
+
+        document.getElementById('logoutButton').addEventListener('click', () => {
+            localStorage.removeItem('currentUser');
+            location.reload();
+        });
+
+        // Auto-login check
+        if (localStorage.getItem('currentUser')) {
+            document.getElementById('username').value = localStorage.getItem('currentUser');
+        }
+
+        initLoginDropdown();
+        createWheel();
+    </script>
+</body>
+
+</html>
