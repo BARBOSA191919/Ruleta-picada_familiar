@@ -1,0 +1,16 @@
+-- Crear la tabla para el estado del juego
+CREATE TABLE IF NOT EXISTS birthday_game_state (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    participants JSONB DEFAULT '[]'::jsonb,
+    assignments JSONB DEFAULT '{}'::jsonb,
+    available_items JSONB DEFAULT '[]'::jsonb,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insertar una fila inicial para que la app tenga dónde guardar datos
+INSERT INTO birthday_game_state (participants, assignments, available_items)
+VALUES ('[]'::jsonb, '{}'::jsonb, '["combo_1", "combo_2", "combo_3", "combo_4", "combo_5"]'::jsonb);
+
+-- Habilitar el tiempo real (Realtime) para que todos los dispositivos vean los giros al mismo tiempo
+ALTER PUBLICATION supabase_realtime ADD TABLE birthday_game_state;
