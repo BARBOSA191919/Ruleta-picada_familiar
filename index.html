@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.4.0/dist/confetti.browser.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="shortcut icon" href="https://cdn-icons-png.flaticon.com/128/931/931949.png" type="image/x-icon">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
@@ -253,7 +254,9 @@
             <div class="text-center mb-8">
                 <div id="loginPhotoContainer"
                     class="w-24 h-24 rounded-full border-4 border-pink-500 overflow-hidden mx-auto mb-4 shadow-lg glow-ring flex items-center justify-center bg-gray-800">
-                    <span id="loginEmoji" class="text-5xl">👨‍👩‍👧‍👦</span>
+                    <div id="loginEmoji" class="text-pink-400">
+                        <i data-lucide="users" class="w-12 h-12"></i>
+                    </div>
                     <img id="loginPhoto" src="" alt="Familia" class="w-full h-full object-cover hidden">
                 </div>
                 <h1 class="text-3xl font-bold text-white mb-2">Picada Familiar</h1>
@@ -272,11 +275,15 @@
                         <option value="" disabled selected>Selecciona tu familia...</option>
                     </select>
                 </div>
-                <div>
+                <div class="relative">
                     <label class="block text-sm font-bold text-gray-300 mb-2">Contraseña</label>
                     <input type="password" id="password" placeholder="Tu contraseña..."
-                        class="w-full p-4 bg-gray-800/80 border-2 border-gray-700 rounded-xl focus:ring-4 focus:ring-pink-500/30 focus:border-pink-500 outline-none transition-all text-white"
+                        class="w-full p-4 bg-gray-800/80 border-2 border-gray-700 rounded-xl focus:ring-4 focus:ring-pink-500/30 focus:border-pink-500 outline-none transition-all text-white pr-12"
                         required>
+                    <button type="button" id="togglePassword"
+                        class="absolute right-4 bottom-4 text-gray-400 hover:text-white transition-colors">
+                        <i data-lucide="eye" class="w-6 h-6"></i>
+                    </button>
                 </div>
                 <button type="submit"
                     class="w-full bg-gradient-to-r from-pink-500 via-rose-500 to-purple-500 text-white p-4 rounded-xl font-bold text-lg hover:from-pink-600 hover:via-rose-600 hover:to-purple-600 transform hover:scale-[1.02] transition-all shadow-lg shadow-pink-500/20">
@@ -296,10 +303,16 @@
             <div class="text-center mb-8 pt-4">
                 <div class="flex justify-between items-center px-4 max-w-4xl mx-auto mb-4">
                     <div class="w-24"></div>
-                    <button id="logoutButton"
-                        class="glass-panel-light hover:bg-white/10 text-gray-400 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
-                        Salir 👋
-                    </button>
+                    <div class="flex gap-2">
+                        <button id="adminResetButton"
+                            class="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-lg font-bold text-sm transition-colors border border-red-500/20 hidden">
+                            Reiniciar Ruleta 🔄
+                        </button>
+                        <button id="logoutButton"
+                            class="glass-panel-light hover:bg-white/10 text-gray-400 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
+                            Cerrar sesión 🔒
+                        </button>
+                    </div>
                 </div>
 
                 <h1 class="text-4xl md:text-5xl font-black title-gradient mb-4">
@@ -439,8 +452,9 @@
                                     </div>
                                 </div>
                                 <iframe
-                                    src="https://maps.google.com/maps?q=Salsamentaria+Berl%C3%ADn+Cra+39+23-03+sur+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                                    src="https://www.google.com/maps?q=Salsamentaria+Berl%C3%ADn+Cra+39+23-03+sur+Neiva&z=15&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
                             <!-- Éxito Unicentro -->
                             <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
@@ -454,8 +468,9 @@
                                     </div>
                                 </div>
                                 <iframe
-                                    src="https://maps.google.com/maps?q=Exito+Unicentro+Neiva+Cl+15+Sur&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                                    src="https://www.google.com/maps?q=Exito+Unicentro+Neiva+Cl+15+Sur&z=15&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
                             <!-- Quesos El Monterey -->
                             <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
@@ -469,8 +484,9 @@
                                     </div>
                                 </div>
                                 <iframe
-                                    src="https://maps.google.com/maps?q=Quesos+Salsamentaria+El+Monterey+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                                    src="https://www.google.com/maps?q=Quesos+Salsamentaria+El+Monterey+Neiva&z=15&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
                             <!-- Carnes Las Brisas -->
                             <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
@@ -483,9 +499,9 @@
                                         <p class="text-gray-400 text-xs truncate">Cra. 5 #17-27 Sur</p>
                                     </div>
                                 </div>
-                                <iframe
-                                    src="https://maps.google.com/maps?q=Carnes+Las+Brisas+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                                <iframe src="https://www.google.com/maps?q=Carnes+Las+Brisas+Neiva&z=15&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
                         </div>
                     </div>
@@ -504,8 +520,9 @@
                                     </div>
                                 </div>
                                 <iframe
-                                    src="https://maps.google.com/maps?q=Almacenes+Exito+Calle+8+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                                    src="https://www.google.com/maps?q=Almacenes+Exito+Calle+8+Neiva&z=15&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
                             <!-- Multinsumos Superior -->
                             <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
@@ -519,8 +536,9 @@
                                     </div>
                                 </div>
                                 <iframe
-                                    src="https://maps.google.com/maps?q=Salsamentaria+Multinsumos+Superior+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                                    src="https://www.google.com/maps?q=Salsamentaria+Multinsumos+Superior+Neiva&z=15&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
                             <!-- El Rey del Huila -->
                             <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
@@ -534,8 +552,9 @@
                                     </div>
                                 </div>
                                 <iframe
-                                    src="https://maps.google.com/maps?q=Salsamentaria+El+Rey+Del+Huila+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                                    src="https://www.google.com/maps?q=Salsamentaria+El+Rey+Del+Huila+Neiva&z=15&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
                             <!-- La Carnicería -->
                             <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
@@ -549,8 +568,9 @@
                                     </div>
                                 </div>
                                 <iframe
-                                    src="https://maps.google.com/maps?q=La+Carniceria+Calle+21+Con+Cra+5+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                                    src="https://www.google.com/maps?q=La+Carniceria+Calle+21+Con+Cra+5+Neiva&z=15&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
                         </div>
                     </div>
@@ -569,8 +589,9 @@
                                     </div>
                                 </div>
                                 <iframe
-                                    src="https://maps.google.com/maps?q=Exito+San+Pedro+Plaza+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                                    src="https://www.google.com/maps?q=Exito+San+Pedro+Plaza+Neiva&z=15&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
                             <!-- Monte Rey -->
                             <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
@@ -584,8 +605,9 @@
                                     </div>
                                 </div>
                                 <iframe
-                                    src="https://maps.google.com/maps?q=Salsamentaria+Monte+Rey+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                                    src="https://www.google.com/maps?q=Salsamentaria+Monte+Rey+Neiva&z=15&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
                             <!-- Bonanza -->
                             <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
@@ -599,8 +621,9 @@
                                     </div>
                                 </div>
                                 <iframe
-                                    src="https://maps.google.com/maps?q=Quesera+Salsamentaria+Bonanza+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                                    src="https://www.google.com/maps?q=Quesera+Salsamentaria+Bonanza+Neiva&z=15&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
                             <!-- La Avenida -->
                             <div class="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
@@ -614,8 +637,9 @@
                                     </div>
                                 </div>
                                 <iframe
-                                    src="https://maps.google.com/maps?q=Salsamentaria+La+Avenida+Neiva&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                                    width="100%" height="150" style="border:0;" allowfullscreen loading="lazy"></iframe>
+                                    src="https://www.google.com/maps?q=Salsamentaria+La+Avenida+Neiva&z=15&output=embed"
+                                    width="100%" height="150" style="border:0;" allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
                         </div>
                     </div>
@@ -684,7 +708,7 @@
         // --- 5 FAMILIAS ---
         const FAMILIES = {
             'barbosa_rivas': {
-                password: 'rivas',
+                password: 'RIVAS',
                 name: 'Fam. Barbosa Rivas',
                 emoji: '🏠👪',
                 image: 'https://scontent.fnva2-1.fna.fbcdn.net/v/t1.6435-9/60775345_101089194473194_5466277196278530048_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=2a1932&_nc_eui2=AeH7ADiQ2RefKt4MER0QN5uuMYKr-0MRMO0xgqv7QxEw7T41-qCkOMA655vgpHGErMhQ4Irw-Pl1gtDTt6SFqJkx&_nc_ohc=Fzp0RAZ3FXoQ7kNvwH9yrn9&_nc_oc=Adl1uOgAD18OmOqjQhwDH6bRrrt3orCpADI6ixsERRdLBl81oXF3CSJWyDaTgkyvcNw&_nc_zt=23&_nc_ht=scontent.fnva2-1.fna&_nc_gid=4W3k_J6nSONZPh4Ls-fYqg&oh=00_AfvLwjaccaEqLgOov4_vYO_bXkZdWlaOlXrvfu-jcW8rdA&oe=69BC2E95'
@@ -1191,6 +1215,13 @@
                 document.getElementById('loginScreen').classList.add('hidden');
                 document.getElementById('gameScreen').classList.remove('hidden');
 
+                // Show admin reset for Rivas
+                if (username === 'barbosa_rivas') {
+                    document.getElementById('adminResetButton').classList.remove('hidden');
+                } else {
+                    document.getElementById('adminResetButton').classList.add('hidden');
+                }
+
                 createWheel();
 
                 const serverState = await getGameState();
@@ -1341,6 +1372,52 @@
 
         initLoginDropdown();
         createWheel();
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Admin Reset Logic
+        document.getElementById('adminResetButton').addEventListener('click', async () => {
+            const result = await Swal.fire({
+                title: '¿Reiniciar ruleta?',
+                text: "Esto borrará todos los giros actuales. ¡No se puede deshacer!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#374151',
+                confirmButtonText: 'Sí, reiniciar',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (result.isConfirmed) {
+                const success = await updateGameState({
+                    participants: [],
+                    assignments: {},
+                    availableCombos: COMBOS.map(c => c.id)
+                });
+
+                if (success) {
+                    Swal.fire('¡Listo!', 'La ruleta ha sido reiniciada.', 'success');
+                } else {
+                    Swal.fire('Error', 'No se pudo reiniciar la ruleta.', 'error');
+                }
+            }
+        });
+
+        // Password Visibility Toggle
+        document.getElementById('togglePassword').addEventListener('click', function () {
+            const passwordInput = document.getElementById('password');
+            const icon = this.querySelector('i');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                passwordInput.type = 'password';
+                icon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        });
     </script>
 </body>
 
